@@ -1,4 +1,4 @@
-package az.kapitalbank.mb.bff.transfermobile.dtos.requests;
+package az.kapitalbank.mb.bff.transfermobile.customer.dtos.requests;
 
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;

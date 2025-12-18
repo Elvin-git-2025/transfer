@@ -1,4 +1,4 @@
-package az.kapitalbank.mb.bff.transfermobile.entities;
+package az.kapitalbank.mb.bff.transfermobile.customer.entities;
 
 import jakarta.persistence.Id;
 import jakarta.persistence.Transient;

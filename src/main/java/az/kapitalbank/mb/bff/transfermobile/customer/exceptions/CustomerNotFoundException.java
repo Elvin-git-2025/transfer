@@ -1,4 +1,4 @@
-package az.kapitalbank.mb.bff.transfermobile.exceptions;
+package az.kapitalbank.mb.bff.transfermobile.customer.exceptions;
 
 public class CustomerNotFoundException extends RuntimeException {
 

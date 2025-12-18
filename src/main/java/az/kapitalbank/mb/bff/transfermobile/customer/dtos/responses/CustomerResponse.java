@@ -1,4 +1,4 @@
-package az.kapitalbank.mb.bff.transfermobile.dtos.responses;
+package az.kapitalbank.mb.bff.transfermobile.customer.dtos.responses;
 
 import lombok.Getter;
 import lombok.Setter;

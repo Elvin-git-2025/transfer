@@ -1,9 +1,9 @@
-package az.kapitalbank.mb.bff.transfermobile.controllers;
+package az.kapitalbank.mb.bff.transfermobile.customer.Controllers;
 
-import az.kapitalbank.mb.bff.transfermobile.dtos.requests.CreateCustomerRequest;
-import az.kapitalbank.mb.bff.transfermobile.dtos.responses.CustomerResponse;
-import az.kapitalbank.mb.bff.transfermobile.entities.Customer;
-import az.kapitalbank.mb.bff.transfermobile.services.CustomerService;
+import az.kapitalbank.mb.bff.transfermobile.customer.dtos.requests.CreateCustomerRequest;
+import az.kapitalbank.mb.bff.transfermobile.customer.dtos.responses.CustomerResponse;
+import az.kapitalbank.mb.bff.transfermobile.customer.entities.Customer;
+import az.kapitalbank.mb.bff.transfermobile.customer.services.CustomerService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
