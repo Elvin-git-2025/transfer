@@ -29,7 +29,7 @@ public class TransferController {
         return transferService.createTransfer(request);
     }
 
-    @GetMapping("/{id}")
+    @GetMapping("/by-id/{id}")
     public TransferResponse getTransfer(@PathVariable Long id) {
         return transferService.getTransferById(id);
     }
