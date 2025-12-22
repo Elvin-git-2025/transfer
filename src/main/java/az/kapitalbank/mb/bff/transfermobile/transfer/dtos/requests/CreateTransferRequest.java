@@ -23,8 +23,11 @@ public class CreateTransferRequest {
     @DecimalMin(value = "0.01", message = "Amount must be greater than zero")
     BigDecimal amount;
 
-    @NotNull(message = "Customer id is required")
-    Long customerId;
+    @NotNull(message = "Payee id is required")
+    Long payeeId;
+
+    @NotNull(message = "Payer id is required")
+    Long payerId;
 
     @NotNull(message = "Transfer type is required")
     TransferType type;

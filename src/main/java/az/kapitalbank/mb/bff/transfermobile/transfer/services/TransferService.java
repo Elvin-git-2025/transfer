@@ -1,7 +1,8 @@
 package az.kapitalbank.mb.bff.transfermobile.transfer.services;
 
-import az.kapitalbank.mb.bff.transfermobile.customer.exceptions.CustomerNotFoundException;
-import az.kapitalbank.mb.bff.transfermobile.transfer.client.CustomerClient;
+import az.kapitalbank.mb.bff.transfermobile.transfer.clients.AccountClient;
+import az.kapitalbank.mb.bff.transfermobile.transfer.exceptions.CustomerNotFoundException;
+import az.kapitalbank.mb.bff.transfermobile.transfer.clients.CustomerClient;
 import az.kapitalbank.mb.bff.transfermobile.transfer.dtos.requests.CreateTransferRequest;
 import az.kapitalbank.mb.bff.transfermobile.transfer.dtos.responses.TransferResponse;
 import az.kapitalbank.mb.bff.transfermobile.transfer.entities.Transfer;
@@ -27,62 +28,92 @@ public class TransferService {
     private final TransferRepository transferRepository;
     private final TransferMapper transferMapper;
     private final CustomerClient customerClient;
+    private final AccountClient accountClient;
 
+    @Transactional
     public TransferResponse createTransfer(CreateTransferRequest request) {
 
-        validate(request);
+        validateCustomerExists(request.getPayeeId());
+        validateCustomerExists(request.getPayerId());
 
-        Transfer transfer = transferMapper.convertToEntity(request);
+        if (request.getPayerId().equals(request.getPayeeId())) {
+            throw new InvalidTransferException(
+                    "Payer and payee cannot be the same"
+            );
+        }
 
         BigDecimal tariff = calculateTariff(request.getType());
         BigDecimal commission =
                 calculateCommission(request.getAmount(), request.getType());
+        BigDecimal totalDebit =
+                request.getAmount().add(tariff).add(commission);
 
-        transfer.setTariff(tariff);
-        transfer.setCommission(commission);
-        transfer.setStatus(TransferStatus.PENDING);
-        transfer.setCreatedAt(LocalDateTime.now());
+        checkSufficientBalance(request.getPayerId(), totalDebit);
+
+        Transfer transfer = transferMapper.convertToEntity(
+                request,
+                tariff,
+                commission,
+                TransferStatus.PENDING,
+                LocalDateTime.now()
+        );
 
         Transfer savedTransfer = transferRepository.save(transfer);
 
-        TransferResponse response =
-                transferMapper.convertToResponse(savedTransfer);
-
-        response.setTotalAmount(
-                savedTransfer.getAmount()
-                        .add(savedTransfer.getCommission())
-                        .add(savedTransfer.getTariff())
-        );
-
-        return response;
-    }
-
-    private void validate(CreateTransferRequest request) {
-
-        if (request.getCustomerId() == null) {
-            throw new InvalidTransferException("Customer id is required");
-        }
-
-        validateCustomerExists(request.getCustomerId());
-
-        if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
-            throw new InvalidTransferException("Amount must be greater than zero");
-        }
-
-        if (request.getType() == null) {
-            throw new InvalidTransferException("Transfer type is required");
-        }
-
-        if (request.getPayee() == null || request.getPayee().isBlank()) {
-            throw new InvalidTransferException("Payee is required");
-        }
-    }
-    private void validateCustomerExists(Long customerId) {
         try {
-            boolean exists = customerClient.existsById(customerId);
+            accountClient.debit(request.getPayerId(), totalDebit);
+            accountClient.credit(request.getPayeeId(), request.getAmount());
+
+            savedTransfer.setStatus(TransferStatus.COMPLETED);
+
+        } catch (Exception ex) {
+            savedTransfer.setStatus(TransferStatus.FAILED);
+            transferRepository.save(savedTransfer);
+
+            throw new InvalidTransferException(
+                    "Transfer failed due to account service error"
+            );
+        }
+
+        return transferMapper.convertToResponse(
+                transferRepository.save(savedTransfer)
+        );
+    }
+
+
+    private void checkSufficientBalance(Long payerId, BigDecimal totalDebit) {
+
+        validateCustomerExists(payerId);
+
+        if (totalDebit == null || totalDebit.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidTransferException(
+                    "Total debit amount must be greater than zero"
+            );
+        }
+
+        BigDecimal balance;
+        try {
+            balance = accountClient.getBalance(payerId);
+        } catch (feign.FeignException ex) {
+            throw new InvalidTransferException(
+                    "Account service unavailable"
+            );
+        }
+
+        if (balance.compareTo(totalDebit) < 0) {
+            throw new InvalidTransferException(
+                    "Insufficient balance"
+            );
+        }
+    }
+
+
+    private void validateCustomerExists(Long payee) {
+        try {
+            boolean exists = customerClient.existsById(payee);
 
             if (!exists) {
-                throw new CustomerNotFoundException(customerId);
+                throw new CustomerNotFoundException(payee);
             }
         } catch (feign.FeignException ex) {
             throw new InvalidTransferException("Customer service unavailable");
@@ -125,16 +156,16 @@ public class TransferService {
         return transferMapper.convertToResponse(transfer);
     }
 
-    public List<TransferResponse> getTransfersByCustomerId(Long customerId) {
+    public List<TransferResponse> getTransfersByPayeeId(Long payeeId) {
 
-        if (customerId == null || customerId <= 0) {
+        if (payeeId == null || payeeId <= 0) {
             throw new InvalidTransferException(
                     "Customer id must be positive"
             );
         }
 
         List<Transfer> transfers =
-                transferRepository.findAllByCustomerId(customerId);
+                transferRepository.findAllByPayeeId(payeeId);
 
         return transferMapper.convertToResponseList(transfers);
     }

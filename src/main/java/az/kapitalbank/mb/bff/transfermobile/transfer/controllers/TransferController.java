@@ -34,10 +34,10 @@ public class TransferController {
         return transferService.getTransferById(id);
     }
 
-    @GetMapping("/customer/{customerId}")
+    @GetMapping("/customer/{payeeId}")
     public List<TransferResponse> getTransfersByCustomer(
-            @PathVariable Long customerId) {
-        return transferService.getTransfersByCustomerId(customerId);
+            @PathVariable Long payeeId) {
+        return transferService.getTransfersByPayeeId(payeeId);
     }
 
     @DeleteMapping("/cancel")

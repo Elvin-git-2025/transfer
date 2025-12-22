@@ -29,7 +29,8 @@ public class Transfer {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     Long id;
     BigDecimal amount;
-    Long customerId;
+    Long payerId;
+    Long payeeId;
     @Enumerated(EnumType.STRING)
     TransferType type;
     @Enumerated(EnumType.STRING)
@@ -37,6 +38,5 @@ public class Transfer {
     BigDecimal tariff;
     BigDecimal commission;
     BigDecimal totalAmount;
-    String payee;
     LocalDateTime createdAt;
 }

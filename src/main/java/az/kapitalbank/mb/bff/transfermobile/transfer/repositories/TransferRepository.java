@@ -9,5 +9,5 @@ import java.util.List;
 
 @Repository
 public interface TransferRepository extends JpaRepository<Transfer, Long> {
-    List<Transfer> findAllByCustomerId(Long customerId);
+    List<Transfer> findAllByPayeeId(Long payeeId);
 }
