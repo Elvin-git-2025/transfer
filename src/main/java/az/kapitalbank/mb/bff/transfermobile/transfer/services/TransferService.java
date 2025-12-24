@@ -33,14 +33,15 @@ public class TransferService {
     @Transactional
     public TransferResponse createTransfer(CreateTransferRequest request) {
 
-        validateCustomerExists(request.getPayeeId());
-        validateCustomerExists(request.getPayerId());
-
         if (request.getPayerId().equals(request.getPayeeId())) {
             throw new InvalidTransferException(
                     "Payer and payee cannot be the same"
             );
         }
+
+        validateCustomerExists(request.getPayerId());
+        validateCustomerExists(request.getPayeeId());
+
 
         BigDecimal tariff = calculateTariff(request.getType());
         BigDecimal commission =
@@ -59,14 +60,13 @@ public class TransferService {
         );
 
         Transfer savedTransfer = transferRepository.save(transfer);
-
         try {
             accountClient.debit(request.getPayerId(), totalDebit);
             accountClient.credit(request.getPayeeId(), request.getAmount());
 
             savedTransfer.setStatus(TransferStatus.COMPLETED);
 
-        } catch (Exception ex) {
+        } catch (feign.FeignException ex) {
             savedTransfer.setStatus(TransferStatus.FAILED);
             transferRepository.save(savedTransfer);
 
@@ -82,8 +82,6 @@ public class TransferService {
 
 
     private void checkSufficientBalance(Long payerId, BigDecimal totalDebit) {
-
-        validateCustomerExists(payerId);
 
         if (totalDebit == null || totalDebit.compareTo(BigDecimal.ZERO) <= 0) {
             throw new InvalidTransferException(
@@ -108,15 +106,25 @@ public class TransferService {
     }
 
 
-    private void validateCustomerExists(Long payee) {
-        try {
-            boolean exists = customerClient.existsById(payee);
+    private void validateCustomerExists(Long id) {
 
+        if (id == null || id <= 0) {
+            throw new InvalidTransferException(
+                    "Customer id must be positive"
+            );
+        }
+
+        try {
+            boolean exists = customerClient.existsById(id);
             if (!exists) {
-                throw new CustomerNotFoundException(payee);
+                throw new CustomerNotFoundException(id);
             }
+        } catch (feign.FeignException.NotFound ex) {
+            throw new CustomerNotFoundException(id);
         } catch (feign.FeignException ex) {
-            throw new InvalidTransferException("Customer service unavailable");
+            throw new InvalidTransferException(
+                    "Customer service unavailable"
+            );
         }
     }
 
