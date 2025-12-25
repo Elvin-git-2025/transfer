@@ -1,6 +1,8 @@
 package az.kapitalbank.mb.bff.transfermobile.transfer.services;
 
 import az.kapitalbank.mb.bff.transfermobile.transfer.clients.AccountClient;
+import az.kapitalbank.mb.bff.transfermobile.transfer.dtos.requests.CreditAccountRequest;
+import az.kapitalbank.mb.bff.transfermobile.transfer.dtos.requests.DebitAccountRequest;
 import az.kapitalbank.mb.bff.transfermobile.transfer.exceptions.CustomerNotFoundException;
 import az.kapitalbank.mb.bff.transfermobile.transfer.clients.CustomerClient;
 import az.kapitalbank.mb.bff.transfermobile.transfer.dtos.requests.CreateTransferRequest;
@@ -30,6 +32,7 @@ public class TransferService {
     private final CustomerClient customerClient;
     private final AccountClient accountClient;
 
+
     @Transactional
     public TransferResponse createTransfer(CreateTransferRequest request) {
 
@@ -42,10 +45,10 @@ public class TransferService {
         validateCustomerExists(request.getPayerId());
         validateCustomerExists(request.getPayeeId());
 
-
         BigDecimal tariff = calculateTariff(request.getType());
         BigDecimal commission =
                 calculateCommission(request.getAmount(), request.getType());
+
         BigDecimal totalDebit =
                 request.getAmount().add(tariff).add(commission);
 
@@ -60,9 +63,17 @@ public class TransferService {
         );
 
         Transfer savedTransfer = transferRepository.save(transfer);
+
         try {
-            accountClient.debit(request.getPayerId(), totalDebit);
-            accountClient.credit(request.getPayeeId(), request.getAmount());
+            accountClient.debit(
+                    request.getPayerId(),
+                    new DebitAccountRequest(totalDebit)
+            );
+
+            accountClient.credit(
+                    request.getPayeeId(),
+                    new CreditAccountRequest(request.getAmount())
+            );
 
             savedTransfer.setStatus(TransferStatus.COMPLETED);
 
@@ -81,6 +92,7 @@ public class TransferService {
     }
 
 
+
     private void checkSufficientBalance(Long payerId, BigDecimal totalDebit) {
 
         if (totalDebit == null || totalDebit.compareTo(BigDecimal.ZERO) <= 0) {
@@ -91,10 +103,18 @@ public class TransferService {
 
         BigDecimal balance;
         try {
-            balance = accountClient.getBalance(payerId);
+            balance = accountClient
+                    .getBalance(payerId)
+                    .getBalance();
         } catch (feign.FeignException ex) {
             throw new InvalidTransferException(
                     "Account service unavailable"
+            );
+        }
+
+        if (balance == null) {
+            throw new InvalidTransferException(
+                    "Account not found or balance unavailable"
             );
         }
 
@@ -104,6 +124,7 @@ public class TransferService {
             );
         }
     }
+
 
 
     private void validateCustomerExists(Long id) {
@@ -176,6 +197,10 @@ public class TransferService {
                 transferRepository.findAllByPayeeId(payeeId);
 
         return transferMapper.convertToResponseList(transfers);
+    }
+
+    public List<TransferResponse> getAllTransfers() {
+      return transferMapper.convertToResponseList(transferRepository.findAll());
     }
 
     @Transactional

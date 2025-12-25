@@ -23,24 +23,29 @@ import java.util.List;
 public class TransferController {
     private final TransferService transferService;
 
-    @PostMapping("/create")
+    @PostMapping
     public TransferResponse createTransfer(
             @RequestBody @Valid CreateTransferRequest request) {
         return transferService.createTransfer(request);
     }
 
-    @GetMapping("/by-id/{id}")
+    @GetMapping("/{id}")
     public TransferResponse getTransfer(@PathVariable Long id) {
         return transferService.getTransferById(id);
     }
 
-    @GetMapping("/customer/{payeeId}")
+    @GetMapping
+    public List<TransferResponse> getTransfers() {
+        return transferService.getAllTransfers();
+    }
+
+    @GetMapping("/{payeeId}")
     public List<TransferResponse> getTransfersByCustomer(
             @PathVariable Long payeeId) {
         return transferService.getTransfersByPayeeId(payeeId);
     }
 
-    @DeleteMapping("/cancel")
+    @DeleteMapping
     public TransferResponse cancelTransfer(@RequestParam("id") Long id) {
         return transferService.cancelTransfer(id);
     }
@@ -50,5 +55,4 @@ public class TransferController {
                                            @RequestParam TransferStatus transferStatus) {
         return transferService.updateTransfer(id, transferStatus);
     }
-
 }

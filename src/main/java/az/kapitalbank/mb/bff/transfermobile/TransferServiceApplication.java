@@ -7,9 +7,9 @@ import org.springframework.cloud.openfeign.EnableFeignClients;
 
 @SpringBootApplication
 @EnableFeignClients
-public class BffTransferMobileApplication {
+public class TransferServiceApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(BffTransferMobileApplication.class, args);
+        SpringApplication.run(TransferServiceApplication.class, args);
     }
 }
