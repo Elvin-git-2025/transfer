@@ -25,7 +25,7 @@ public class TransferResponse {
     BigDecimal totalAmount;
     TransferType type;
     String payee;
-    Long customerId;
+    Long payeeId;
     LocalDateTime createdAt;
     TransferStatus status;
 }

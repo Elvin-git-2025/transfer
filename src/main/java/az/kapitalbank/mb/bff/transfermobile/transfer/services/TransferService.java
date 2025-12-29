@@ -19,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 
 
@@ -55,12 +54,7 @@ public class TransferService {
         checkSufficientBalance(request.getPayerId(), totalDebit);
 
         Transfer transfer = transferMapper.convertToEntity(
-                request,
-                tariff,
-                commission,
-                TransferStatus.PENDING,
-                LocalDateTime.now()
-        );
+                request);
 
         Transfer savedTransfer = transferRepository.save(transfer);
 
@@ -82,7 +76,7 @@ public class TransferService {
             transferRepository.save(savedTransfer);
 
             throw new InvalidTransferException(
-                    "Transfer failed due to account service error"
+                    "Transfer failed due to account service error", ex
             );
         }
 
@@ -94,33 +88,39 @@ public class TransferService {
 
 
     private void checkSufficientBalance(Long payerId, BigDecimal totalDebit) {
+        validateDebitAmount(totalDebit);
 
+        BigDecimal balance = fetchBalance(payerId);
+
+        if (balance.compareTo(totalDebit) < 0) {
+            throw new InvalidTransferException("Insufficient balance");
+        }
+    }
+
+    private void validateDebitAmount(BigDecimal totalDebit) {
         if (totalDebit == null || totalDebit.compareTo(BigDecimal.ZERO) <= 0) {
             throw new InvalidTransferException(
                     "Total debit amount must be greater than zero"
             );
         }
+    }
 
-        BigDecimal balance;
+    private BigDecimal fetchBalance(Long payerId) {
         try {
-            balance = accountClient
+            BigDecimal balance = accountClient
                     .getBalance(payerId)
                     .getBalance();
+
+            if (balance == null) {
+                throw new InvalidTransferException(
+                        "Account not found or balance unavailable"
+                );
+            }
+            return balance;
+
         } catch (feign.FeignException ex) {
             throw new InvalidTransferException(
-                    "Account service unavailable"
-            );
-        }
-
-        if (balance == null) {
-            throw new InvalidTransferException(
-                    "Account not found or balance unavailable"
-            );
-        }
-
-        if (balance.compareTo(totalDebit) < 0) {
-            throw new InvalidTransferException(
-                    "Insufficient balance"
+                    "Account service unavailable", ex
             );
         }
     }
@@ -128,26 +128,33 @@ public class TransferService {
 
 
     private void validateCustomerExists(Long id) {
+        validateCustomerId(id);
 
+        if (!customerExists(id)) {
+            throw new CustomerNotFoundException(id);
+        }
+    }
+
+    private boolean customerExists(Long id) {
+        try {
+            return customerClient.existsById(id);
+        } catch (feign.FeignException.NotFound ex) {
+            return false;
+        } catch (feign.FeignException ex) {
+            throw new InvalidTransferException(
+                    "Customer service unavailable", ex
+            );
+        }
+    }
+
+    private void validateCustomerId(Long id) {
         if (id == null || id <= 0) {
             throw new InvalidTransferException(
                     "Customer id must be positive"
             );
         }
-
-        try {
-            boolean exists = customerClient.existsById(id);
-            if (!exists) {
-                throw new CustomerNotFoundException(id);
-            }
-        } catch (feign.FeignException.NotFound ex) {
-            throw new CustomerNotFoundException(id);
-        } catch (feign.FeignException ex) {
-            throw new InvalidTransferException(
-                    "Customer service unavailable"
-            );
-        }
     }
+
 
     private BigDecimal calculateTariff(TransferType type) {
         return switch (type) {
@@ -200,7 +207,9 @@ public class TransferService {
     }
 
     public List<TransferResponse> getAllTransfers() {
-      return transferMapper.convertToResponseList(transferRepository.findAll());
+        return transferMapper.convertToResponseList(
+                transferRepository.findAll()
+        );
     }
 
     @Transactional

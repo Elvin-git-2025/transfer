@@ -36,6 +36,7 @@ public class Transfer {
     @Enumerated(EnumType.STRING)
     TransferStatus status;
     BigDecimal tariff;
+    String payee;
     BigDecimal commission;
     BigDecimal totalAmount;
     LocalDateTime createdAt;

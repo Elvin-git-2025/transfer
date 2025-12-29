@@ -1,4 +1,4 @@
-package az.kapitalbank.mb.bff.transfermobile.transfer.globalExceptionHandler;
+package az.kapitalbank.mb.bff.transfermobile.transfer.global.exception.handler;
 
 import az.kapitalbank.mb.bff.transfermobile.transfer.exceptions.InvalidTransferException;
 import org.springframework.http.HttpStatus;
