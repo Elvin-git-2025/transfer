@@ -1,0 +1,8 @@
+{
+  "properties": [
+    {
+      "name": "card.service.url",
+      "type": "java.lang.String",
+      "description": "Description for card.service.url."
+  }
+] }

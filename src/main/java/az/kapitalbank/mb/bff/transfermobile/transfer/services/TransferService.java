@@ -1,6 +1,7 @@
 package az.kapitalbank.mb.bff.transfermobile.transfer.services;
 
 import az.kapitalbank.mb.bff.transfermobile.transfer.clients.AccountClient;
+import az.kapitalbank.mb.bff.transfermobile.transfer.clients.CardClient;
 import az.kapitalbank.mb.bff.transfermobile.transfer.dtos.requests.CreditAccountRequest;
 import az.kapitalbank.mb.bff.transfermobile.transfer.dtos.requests.DebitAccountRequest;
 import az.kapitalbank.mb.bff.transfermobile.transfer.exceptions.CustomerNotFoundException;
@@ -30,6 +31,7 @@ public class TransferService {
     private final TransferMapper transferMapper;
     private final CustomerClient customerClient;
     private final AccountClient accountClient;
+    private final CardClient cardClient;
 
 
     @Transactional
@@ -239,6 +241,23 @@ public class TransferService {
                 transferRepository.save(transfer)
         );
     }
+
+    private void validateCardExists(Long cardId) {
+        if (cardId == null || cardId <= 0) {
+            throw new InvalidTransferException("Card id must be positive");
+        }
+
+        try {
+            if (!cardClient.exists(cardId)) {
+                throw new InvalidTransferException("Card not found: " + cardId);
+            }
+        } catch (feign.FeignException ex) {
+            throw new InvalidTransferException(
+                    "Card service unavailable", ex
+            );
+        }
+    }
+
 
     public TransferResponse updateTransfer(Long id, TransferStatus status) {
 
