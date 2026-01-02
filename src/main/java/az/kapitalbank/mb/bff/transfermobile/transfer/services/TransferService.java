@@ -20,7 +20,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -41,40 +40,34 @@ public class TransferService {
 
         BigDecimal tariff = calculateTariff(request.getType());
         BigDecimal commission = calculateCommission(request.getAmount(), request.getType());
-        BigDecimal totalDebit = request.getAmount()
-                .add(tariff)
-                .add(commission);
+        BigDecimal totalDebit = request.getAmount().add(tariff).add(commission);
 
-        checkSufficientBalance(
-                request.getPayerId(),
-                request.getType(),
-                totalDebit
-        );
+        checkSufficientBalance(request.getPayerId(), request.getType(), totalDebit);
 
         Transfer transfer = transferMapper.convertToEntity(request);
         transfer.setTariff(tariff);
         transfer.setCommission(commission);
         transfer.setTotalAmount(totalDebit);
-        transfer.setStatus(TransferStatus.PENDING);
-        transfer.setCreatedAt(LocalDateTime.now());
 
         transfer = transferRepository.save(transfer);
 
         try {
             executeTransfer(request, totalDebit);
+
             transfer.setStatus(TransferStatus.COMPLETED);
+
         } catch (feign.FeignException ex) {
             transfer.setStatus(TransferStatus.FAILED);
             transferRepository.save(transfer);
+
             throw new InvalidTransferException(
                     "Transfer failed due to downstream service error",
                     ex
             );
         }
 
-        return transferMapper.convertToResponse(
-                transferRepository.save(transfer)
-        );
+        transfer = transferRepository.save(transfer);
+        return transferMapper.convertToResponse(transfer);
     }
 
 
@@ -99,7 +92,13 @@ public class TransferService {
 
             case ACCOUNT_TO_CARD -> {
                 validateCustomerExists(request.getPayerId());
-                validateCardExists(request.getPayeeId());
+
+                Long payeeCardId = cardClient.getCardIdByCustomerId(request.getPayeeId());
+                if (payeeCardId == null) {
+                    throw new InvalidTransferException(
+                            "Payee customer has no active card"
+                    );
+                }
 
                 accountClient.debit(
                         request.getPayerId(),
@@ -107,7 +106,7 @@ public class TransferService {
                 );
 
                 cardClient.credit(
-                        request.getPayeeId(),
+                        payeeCardId,
                         new CreditAccountRequest(request.getAmount())
                 );
             }
@@ -184,11 +183,17 @@ public class TransferService {
         validatePositiveId(cardId, "Card id");
 
         try {
-            if (!cardClient.exists(cardId)) {
+            boolean exists = cardClient.exists(cardId);
+            if (!exists) {
                 throw new InvalidTransferException(
                         "Card not found with id: " + cardId
                 );
             }
+        } catch (feign.FeignException.NotFound ex) {
+            throw new InvalidTransferException(
+                    "Card not found with id: " + cardId,
+                    ex
+            );
         } catch (feign.FeignException ex) {
             throw new InvalidTransferException(
                     "Card service unavailable",

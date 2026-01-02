@@ -15,19 +15,23 @@ import org.springframework.web.bind.annotation.RequestBody;
 )
 public interface CardClient {
 
-    @GetMapping("/api/v1/cards/{cardId}/exists")
+    @GetMapping("/api/v1/card/customer/{customerId}")
+    Long getCardIdByCustomerId(@PathVariable Long customerId);
+
+
+    @GetMapping("/api/v1/card/{cardId}/exists")
     boolean exists(@PathVariable Long cardId);
 
-    @GetMapping("/api/v1/cards/{cardId}/balance")
+    @GetMapping("/api/v1/card/{cardId}/balance")
     AccountBalanceResponse getBalance(@PathVariable Long cardId);
 
-    @PostMapping("/api/v1/cards/{cardId}/debit")
+    @PostMapping("/api/v1/card/{cardId}/debit")
     void debit(
             @PathVariable Long cardId,
             @RequestBody DebitAccountRequest request
     );
 
-    @PostMapping("/api/v1/cards/{cardId}/credit")
+    @PostMapping("/api/v1/card/{cardId}/credit")
     void credit(
             @PathVariable Long cardId,
             @RequestBody CreditAccountRequest request
