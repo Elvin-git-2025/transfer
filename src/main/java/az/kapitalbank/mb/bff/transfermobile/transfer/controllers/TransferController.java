@@ -29,17 +29,17 @@ public class TransferController {
         return transferService.createTransfer(request);
     }
 
-    @GetMapping("/{id}")
-    public TransferResponse getTransfer(@PathVariable Long id) {
-        return transferService.getTransferById(id);
-    }
-
     @GetMapping
     public List<TransferResponse> getTransfers() {
         return transferService.getAllTransfers();
     }
 
-    @GetMapping("/{payeeId}")
+    @GetMapping("/{id}")
+    public TransferResponse getTransfer(@PathVariable Long id) {
+        return transferService.getTransferById(id);
+    }
+
+    @GetMapping("/by-payee/{payeeId}")
     public List<TransferResponse> getTransfersByCustomer(
             @PathVariable Long payeeId) {
         return transferService.getTransfersByPayeeId(payeeId);
