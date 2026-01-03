@@ -3,21 +3,33 @@ package az.kapitalbank.mb.bff.transfermobile.transfer.mappers;
 import az.kapitalbank.mb.bff.transfermobile.transfer.dtos.requests.CreateTransferRequest;
 import az.kapitalbank.mb.bff.transfermobile.transfer.dtos.responses.TransferResponse;
 import az.kapitalbank.mb.bff.transfermobile.transfer.entities.Transfer;
+import az.kapitalbank.mb.bff.transfermobile.transfer.enums.TransferStatus;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 
-@Mapper(componentModel = "spring")
+@Mapper(componentModel = "spring",
+        imports = {LocalDateTime.class}
+)
 public interface TransferMapper {
 
     @Mapping(target = "id", ignore = true)
-    @Mapping(target = "status", constant = "PENDING")
-    @Mapping(target = "createdAt", expression = "java(java.time.LocalDateTime.now())")
-    @Mapping(target = "tariff", ignore = true)       // will set in service
-    @Mapping(target = "commission", ignore = true)   // will set in service
-    @Mapping(target = "totalAmount", ignore = true)  // will set in service
-    Transfer convertToEntity(CreateTransferRequest request);
+    @Mapping(target = "status", source = "status")
+    @Mapping(target = "tariff", source = "tariff")
+    @Mapping(target = "commission", source = "commission")
+    @Mapping(target = "totalAmount", source = "totalDebit")
+    @Mapping(target = "createdAt", expression = "java(LocalDateTime.now())")
+    Transfer convertToEntity(
+            CreateTransferRequest request,
+            BigDecimal tariff,
+            BigDecimal commission,
+            BigDecimal totalDebit,
+            TransferStatus status
+    );
 
     TransferResponse convertToResponse(Transfer transfer);
 

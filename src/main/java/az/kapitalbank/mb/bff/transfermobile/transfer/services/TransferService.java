@@ -44,10 +44,9 @@ public class TransferService {
 
         checkSufficientBalance(request.getPayerId(), request.getType(), totalDebit);
 
-        Transfer transfer = transferMapper.convertToEntity(request);
-        transfer.setTariff(tariff);
-        transfer.setCommission(commission);
-        transfer.setTotalAmount(totalDebit);
+        Transfer transfer = transferMapper.convertToEntity(
+                request, tariff, commission, totalDebit, TransferStatus.PENDING
+        );
 
         transfer = transferRepository.save(transfer);
 
@@ -110,40 +109,38 @@ public class TransferService {
                         new CreditAccountRequest(request.getAmount())
                 );
             }
+            default -> throw new InvalidTransferException("Unsupported transfer type: " + request.getType());
         }
     }
 
 
-    private void checkSufficientBalance(
-            Long payerId,
-            TransferType type,
-            BigDecimal totalDebit
-    ) {
+    private void checkSufficientBalance(Long payerId, TransferType type, BigDecimal totalDebit) {
+        validateDebitAmount(totalDebit);
 
-        if (totalDebit == null || totalDebit.compareTo(BigDecimal.ZERO) <= 0) {
-            throw new InvalidTransferException(
-                    "Total debit amount must be greater than zero"
-            );
-        }
-
-        BigDecimal balance;
-
-        try {
-            balance = switch (type) {
-                case CARD_TO_CARD ->
-                        cardClient.getBalance(payerId).getBalance();
-                case ACCOUNT_TO_CARD ->
-                        accountClient.getBalance(payerId).getBalance();
-            };
-        } catch (feign.FeignException ex) {
-            throw new InvalidTransferException(
-                    "Balance service unavailable",
-                    ex
-            );
-        }
+        BigDecimal balance = fetchBalanceSafely(payerId, type);
 
         if (balance == null || balance.compareTo(totalDebit) < 0) {
             throw new InvalidTransferException("Insufficient balance");
+        }
+    }
+
+    private void validateDebitAmount(BigDecimal totalDebit) {
+        if (totalDebit == null || totalDebit.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new InvalidTransferException("Total debit amount must be greater than zero");
+        }
+    }
+
+    private BigDecimal fetchBalanceSafely(Long payerId, TransferType type) {
+        try {
+            // Using if-else here also resolves the "switch with less than 3 branches" warning
+            if (type == TransferType.CARD_TO_CARD) {
+                return cardClient.getBalance(payerId).getBalance();
+            } else if (type == TransferType.ACCOUNT_TO_CARD) {
+                return accountClient.getBalance(payerId).getBalance();
+            }
+            throw new InvalidTransferException("Unsupported transfer type: " + type);
+        } catch (feign.FeignException ex) {
+            throw new InvalidTransferException("Balance service unavailable", ex);
         }
     }
 
