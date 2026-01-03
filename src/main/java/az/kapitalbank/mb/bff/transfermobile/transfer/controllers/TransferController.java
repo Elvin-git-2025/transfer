@@ -45,8 +45,8 @@ public class TransferController {
         return transferService.getTransfersByPayeeId(payeeId);
     }
 
-    @DeleteMapping
-    public TransferResponse cancelTransfer(@RequestParam("id") Long id) {
+    @DeleteMapping("/{id}")
+    public TransferResponse cancelTransfer(@PathVariable("id") Long id) {
         return transferService.cancelTransfer(id);
     }
 

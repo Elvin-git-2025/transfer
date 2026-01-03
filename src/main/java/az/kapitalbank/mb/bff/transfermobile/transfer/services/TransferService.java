@@ -269,16 +269,19 @@ public class TransferService {
         Transfer transfer = transferRepository.findById(id)
                 .orElseThrow(() -> new TransferNotFoundException(id));
 
+
         if (transfer.getStatus() != TransferStatus.PENDING) {
-            throw new InvalidTransferException(
-                    "Only PENDING transfers can be cancelled"
-            );
+            throw new InvalidTransferException("Only PENDING transfers can be cancelled");
         }
 
+        CreditAccountRequest refundRequest = new CreditAccountRequest(transfer.getAmount());
+        cardClient.credit(transfer.getPayerId(), refundRequest);
+
+
         transfer.setStatus(TransferStatus.CANCELLED);
-        return transferMapper.convertToResponse(
-                transferRepository.save(transfer)
-        );
+        transferRepository.save(transfer);
+
+        return transferMapper.convertToResponse(transfer);
     }
 
     @Transactional
