@@ -57,7 +57,6 @@ public class TransferService {
 
         } catch (feign.FeignException ex) {
             transfer.setStatus(TransferStatus.FAILED);
-            transferRepository.save(transfer);
 
             throw new InvalidTransferException(
                     "Transfer failed due to downstream service error",
@@ -80,7 +79,9 @@ public class TransferService {
 
                 cardClient.debit(
                         request.getPayerId(),
-                        new DebitAccountRequest(totalDebit)
+                        DebitAccountRequest.builder()
+                                .amount(totalDebit)
+                                .build()
                 );
 
                 cardClient.credit(
@@ -101,7 +102,9 @@ public class TransferService {
 
                 accountClient.debit(
                         request.getPayerId(),
-                        new DebitAccountRequest(totalDebit)
+                        DebitAccountRequest.builder()
+                                .amount(totalDebit)
+                                .build()
                 );
 
                 cardClient.credit(
