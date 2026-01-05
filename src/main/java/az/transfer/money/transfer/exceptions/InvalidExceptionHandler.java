@@ -1,6 +1,5 @@
-package az.transfer.money.transfer.global.exception.handler;
+package az.transfer.money.transfer.exceptions;
 
-import az.transfer.money.transfer.exceptions.InvalidTransferException;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
