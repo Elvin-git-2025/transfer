@@ -1,0 +1,17 @@
+package az.transfer.money.transfer.exceptions;
+
+import java.io.Serial;
+
+public class InvalidTransferException extends RuntimeException {
+
+    @Serial
+    private static final long serialVersionUID = 1L;
+
+    public InvalidTransferException(String message) {
+        super(message);
+    }
+
+    public InvalidTransferException(String message, Throwable cause) {
+        super(message, cause);
+    }
+}

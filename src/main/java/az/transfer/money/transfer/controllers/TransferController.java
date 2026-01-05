@@ -1,0 +1,58 @@
+package az.transfer.money.transfer.controllers;
+
+import az.transfer.money.transfer.dtos.requests.CreateTransferRequest;
+import az.transfer.money.transfer.dtos.responses.TransferResponse;
+import az.transfer.money.transfer.enums.TransferStatus;
+import az.transfer.money.transfer.services.TransferService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.PathVariable;
+import java.util.List;
+
+@RestController
+@RequestMapping("/api/v1/transfer")
+@RequiredArgsConstructor
+public class TransferController {
+    private final TransferService transferService;
+
+    @PostMapping
+    public TransferResponse createTransfer(
+            @RequestBody @Valid CreateTransferRequest request) {
+        return transferService.createTransfer(request);
+    }
+
+    @GetMapping
+    public List<TransferResponse> getTransfers() {
+        return transferService.getAllTransfers();
+    }
+
+    @GetMapping("/{id}")
+    public TransferResponse getTransfer(@PathVariable Long id) {
+        return transferService.getTransferById(id);
+    }
+
+    @GetMapping("/by-payee/{payeeId}")
+    public List<TransferResponse> getTransfersByCustomer(
+            @PathVariable Long payeeId) {
+        return transferService.getTransfersByPayeeId(payeeId);
+    }
+
+    @DeleteMapping("/{id}")
+    public TransferResponse cancelTransfer(@PathVariable("id") Long id) {
+        return transferService.cancelTransfer(id);
+    }
+
+    @PutMapping("/{id}/status")
+    public TransferResponse updateTransfer(@PathVariable Long id,
+                                           @RequestParam TransferStatus transferStatus) {
+        return transferService.updateTransfer(id, transferStatus);
+    }
+}
