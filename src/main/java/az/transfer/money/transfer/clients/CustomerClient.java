@@ -7,10 +7,11 @@ import org.springframework.web.bind.annotation.PathVariable;
 
 @FeignClient(
         name = "customer-service",
-        url = "${customer.service.url}"
+        url = "${customer.service.url}",
+        path = "/api/v1/customers"
 )
 public interface CustomerClient {
 
-    @GetMapping("/api/v1/customers/{id}/exists")
+    @GetMapping("/{id}/exists")
     boolean existsById(@PathVariable Long id);
 }

@@ -11,27 +11,28 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 @FeignClient(
         name = "card-service",
-        url = "${card.service.url}"
+        url = "${card.service.url}",
+        path = "/api/v1/card"
 )
 public interface CardClient {
 
-    @GetMapping("/api/v1/card/customer/{customerId}")
+    @GetMapping("/customer/{customerId}")
     Long getCardIdByCustomerId(@PathVariable Long customerId);
 
 
-    @GetMapping("/api/v1/card/{cardId}/exists")
+    @GetMapping("/{cardId}/exists")
     boolean exists(@PathVariable Long cardId);
 
-    @GetMapping("/api/v1/card/{cardId}/balance")
+    @GetMapping("/{cardId}/balance")
     AccountBalanceResponse getBalance(@PathVariable Long cardId);
 
-    @PostMapping("/api/v1/card/{cardId}/debit")
+    @PostMapping("/{cardId}/debit")
     void debit(
             @PathVariable Long cardId,
             @RequestBody DebitAccountRequest request
     );
 
-    @PostMapping("/api/v1/card/{cardId}/credit")
+    @PostMapping("/{cardId}/credit")
     void credit(
             @PathVariable Long cardId,
             @RequestBody CreditAccountRequest request
