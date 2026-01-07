@@ -135,7 +135,6 @@ public class TransferService {
 
     private BigDecimal fetchBalanceSafely(Long payerId, TransferType type) {
         try {
-            // Using if-else here also resolves the "switch with less than 3 branches" warning
             if (type == TransferType.CARD_TO_CARD) {
                 return cardClient.getBalance(payerId).getBalance();
             } else if (type == TransferType.ACCOUNT_TO_CARD) {
