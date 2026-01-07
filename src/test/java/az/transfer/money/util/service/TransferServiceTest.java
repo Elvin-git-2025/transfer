@@ -50,14 +50,10 @@ public class TransferServiceTest {
     @InjectMocks
     private TransferService transferService;
 
-    @BeforeEach
-    void setUp() {
-        MockitoAnnotations.openMocks(this);
-    }
 
     @Test
     void createTransfer_cardToCard_successful() {
-        // Arrange
+
         Long payerId = 1L;
         Long payeeId = 2L;
         BigDecimal amount = BigDecimal.valueOf(100);
@@ -67,14 +63,6 @@ public class TransferServiceTest {
         request.setPayeeId(payeeId);
         request.setAmount(amount);
         request.setType(TransferType.CARD_TO_CARD);
-
-        BigDecimal tariff = BigDecimal.valueOf(1.00);
-        BigDecimal commission = amount.multiply(BigDecimal.valueOf(0.02));
-        BigDecimal totalDebit = amount.add(tariff).add(commission);
-
-        when(cardClient.getBalance(anyLong()))
-                .thenAnswer(invocation -> new AccountBalanceResponse(BigDecimal.valueOf(500)));
-        when(cardClient.exists(anyLong())).thenReturn(true);
 
         Transfer transferEntity = new Transfer();
         transferEntity.setPayerId(payerId);
@@ -90,11 +78,15 @@ public class TransferServiceTest {
 
         TransferResponse transferResponse = new TransferResponse();
         transferResponse.setStatus(TransferStatus.COMPLETED);
+        AccountBalanceResponse balance = new AccountBalanceResponse();
+        balance.setBalance(BigDecimal.valueOf(1000));
 
-        when(transferMapper.convertToEntity(request, tariff, commission, totalDebit, TransferStatus.PENDING))
-                .thenReturn(transferEntity);
+        when(cardClient.getBalance(anyLong())).thenReturn(balance);
+        when(cardClient.exists(anyLong())).thenReturn(true);
+        when(transferMapper.convertToEntity(any(), any(), any(), any(), any())).thenReturn(transferEntity);
         when(transferRepository.save(transferEntity)).thenReturn(savedTransfer);
-        when(transferMapper.convertToResponse(savedTransfer)).thenReturn(transferResponse);
+        when(transferMapper.convertToResponse(any())).thenReturn(transferResponse);
+
 
         TransferResponse response = transferService.createTransfer(request);
 

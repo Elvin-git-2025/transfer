@@ -136,7 +136,8 @@ public class TransferService {
     private BigDecimal fetchBalanceSafely(Long payerId, TransferType type) {
         try {
             if (type == TransferType.CARD_TO_CARD) {
-                return cardClient.getBalance(payerId).getBalance();
+                var balance = cardClient.getBalance(payerId);
+                return balance.getBalance();
             } else if (type == TransferType.ACCOUNT_TO_CARD) {
                 return accountClient.getBalance(payerId).getBalance();
             }
