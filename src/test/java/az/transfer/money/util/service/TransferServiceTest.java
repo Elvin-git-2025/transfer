@@ -482,7 +482,7 @@ public class TransferServiceTest {
         when(accountClient.getBalance(payerId)).thenReturn(balanceResponse);
         when(customerClient.existsById(payerId)).thenReturn(false);
 
-        assertThatThrownBy(()-> transferService.createTransfer(createTransferRequest))
+        assertThatThrownBy(() -> transferService.createTransfer(createTransferRequest))
                 .isInstanceOf(CustomerNotFoundException.class);
 
         verify(accountClient).getBalance(payerId);
@@ -507,12 +507,115 @@ public class TransferServiceTest {
         when(accountClient.getBalance(payerId)).thenReturn(balanceResponse);
         when(customerClient.existsById(payerId)).thenThrow(feign.FeignException.InternalServerError.class);
 
-        assertThatThrownBy(()-> transferService.createTransfer(createTransferRequest))
-        .isInstanceOf(InvalidTransferException.class)
+        assertThatThrownBy(() -> transferService.createTransfer(createTransferRequest))
+                .isInstanceOf(InvalidTransferException.class)
                 .hasMessage("Customer service unavailable");
 
         verify(accountClient).getBalance(payerId);
         verify(customerClient).existsById(payerId);
         verify(transferRepository, times(1)).save(any());
+    }
+
+    @Test
+    void createTransfer_samePayerAndPayee_throwsException() {
+        Long sameId = 1L;
+
+        CreateTransferRequest createTransferRequest = new CreateTransferRequest();
+        createTransferRequest.setPayerId(sameId);
+        createTransferRequest.setPayeeId(sameId);
+        createTransferRequest.setAmount(BigDecimal.valueOf(100));
+        createTransferRequest.setType(TransferType.ACCOUNT_TO_CARD);
+
+        assertThatThrownBy(() -> transferService.createTransfer(createTransferRequest))
+                .isInstanceOf(InvalidTransferException.class)
+                .hasMessage("Payer and payee cannot be the same");
+
+        verifyNoInteractions(transferRepository);
+        verifyNoInteractions(cardClient);
+    }
+
+    @Test
+    void createTransfer_negativeAmount_throwsException() {
+         Long payerId = 1L;
+         Long payeeId = 2L;
+         CreateTransferRequest createTransferRequest = new CreateTransferRequest();
+         createTransferRequest.setPayerId(payerId);
+         createTransferRequest.setPayeeId(payeeId);
+         createTransferRequest.setAmount(BigDecimal.valueOf(-100));
+         createTransferRequest.setType(TransferType.ACCOUNT_TO_CARD);
+
+         assertThatThrownBy(() -> transferService.createTransfer(createTransferRequest))
+         .isInstanceOf(InvalidTransferException.class)
+                 .hasMessage(  "Transfer amount must be greater than zero");
+
+         verifyNoInteractions(transferRepository);
+         verifyNoInteractions(cardClient);
+    }
+
+    @Test
+    void createTransfer_insufficientBalance_throwsException(){
+        Long payerId = 1L;
+        Long payeeId = 2L;
+
+        CreateTransferRequest createTransferRequest = new CreateTransferRequest();
+        createTransferRequest.setPayerId(payerId);
+        createTransferRequest.setPayeeId(payeeId);
+        createTransferRequest.setAmount(BigDecimal.valueOf(100));
+        createTransferRequest.setType(TransferType.ACCOUNT_TO_CARD);
+
+        AccountBalanceResponse lowBalance = new AccountBalanceResponse();
+        lowBalance.setBalance(BigDecimal.valueOf(10));
+
+        when(accountClient.getBalance(payerId)).thenReturn(lowBalance);
+
+        assertThatThrownBy(() -> transferService.createTransfer(createTransferRequest))
+        .isInstanceOf(InvalidTransferException.class)
+                .hasMessage("Insufficient balance");
+
+        verify(accountClient).getBalance(payerId);
+        verifyNoInteractions(transferRepository);
+        verifyNoInteractions(cardClient);
+    }
+
+    @Test
+    void createTransfer_accountToCard_whenPayeeHasNoCard_throwsException(){
+        Long payerId = 1L;
+        Long payeeId = 2L;
+        CreateTransferRequest createTransferRequest = new CreateTransferRequest();
+        createTransferRequest.setPayerId(payerId);
+        createTransferRequest.setPayeeId(payeeId);
+        createTransferRequest.setAmount(BigDecimal.valueOf(100));
+        createTransferRequest.setType(TransferType.ACCOUNT_TO_CARD);
+
+        AccountBalanceResponse balance = new AccountBalanceResponse();
+        balance.setBalance(BigDecimal.valueOf(1000));
+
+        when(accountClient.getBalance(payerId)).thenReturn(balance);
+        when(customerClient.existsById(payerId)).thenReturn(true);
+
+        when(cardClient.getCardIdByCustomerId(payeeId)).thenReturn(null);
+
+        assertThatThrownBy(() -> transferService.createTransfer(createTransferRequest))
+                .isInstanceOf(InvalidTransferException.class)
+                .hasMessage("Payee customer has no active card");
+    }
+
+    @Test
+    void createTransfer_cardToCard_whenCardNotFound_throwsException() {
+        CreateTransferRequest request = new CreateTransferRequest();
+        request.setPayerId(1L);
+        request.setPayeeId(2L);
+        request.setAmount(BigDecimal.valueOf(100));
+        request.setType(TransferType.CARD_TO_CARD);
+
+        AccountBalanceResponse balance = new AccountBalanceResponse();
+        balance.setBalance(BigDecimal.valueOf(1000));
+
+        when(cardClient.getBalance(anyLong())).thenReturn(balance);
+        when(cardClient.exists(1L)).thenThrow(feign.FeignException.NotFound.class);
+
+        assertThatThrownBy(() -> transferService.createTransfer(request))
+                .isInstanceOf(InvalidTransferException.class)
+                .hasMessageContaining("Card not found with id: 1");
     }
 }
