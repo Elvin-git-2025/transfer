@@ -11,6 +11,8 @@ import az.transfer.money.transfer.dtos.responses.TransferResponse;
 import az.transfer.money.transfer.entities.Transfer;
 import az.transfer.money.transfer.enums.TransferStatus;
 import az.transfer.money.transfer.enums.TransferType;
+import az.transfer.money.transfer.exceptions.CustomerNotFoundException;
+import az.transfer.money.transfer.exceptions.InvalidTransferException;
 import az.transfer.money.transfer.mappers.TransferMapper;
 import az.transfer.money.transfer.repositories.TransferRepository;
 import az.transfer.money.transfer.services.TransferService;
@@ -437,5 +439,80 @@ public class TransferServiceTest {
 
         verify(transferRepository).findAll();
         verify(transferMapper).convertToResponseList(transfers);
+    }
+
+    @Test
+    void getTransfersByPayeeId_successful() {
+        Long payeeId = 1L;
+        Transfer existingTransfer = new Transfer();
+        existingTransfer.setPayeeId(payeeId);
+
+        List<Transfer> transfers = List.of(existingTransfer);
+
+        TransferResponse response1 = new TransferResponse();
+        List<TransferResponse> expectedResponses = List.of(response1);
+
+        when(transferRepository.findAllByPayeeId(1L)).thenReturn(transfers);
+        when(transferMapper.convertToResponseList(transfers)).thenReturn(expectedResponses);
+
+        List<TransferResponse> actualResponses = transferService.getTransfersByPayeeId(1L);
+
+        assertThat(actualResponses).isNotNull();
+        assertThat(actualResponses.size()).isEqualTo(1);
+        assertThat(actualResponses).isEqualTo(expectedResponses);
+
+        verify(transferRepository).findAllByPayeeId(1L);
+        verify(transferMapper).convertToResponseList(transfers);
+    }
+
+    @Test
+    void validateCustomerExists_customerNotFound_throwsException() {
+        Long payerId = 1L;
+        Long payeeId = 2L;
+
+        CreateTransferRequest createTransferRequest = new CreateTransferRequest();
+        createTransferRequest.setPayerId(payerId);
+        createTransferRequest.setAmount(BigDecimal.valueOf(50.00));
+        createTransferRequest.setPayeeId(payeeId);
+        createTransferRequest.setType(TransferType.ACCOUNT_TO_CARD);
+
+        AccountBalanceResponse balanceResponse = new AccountBalanceResponse();
+        balanceResponse.setBalance(BigDecimal.valueOf(1000));
+
+        when(accountClient.getBalance(payerId)).thenReturn(balanceResponse);
+        when(customerClient.existsById(payerId)).thenReturn(false);
+
+        assertThatThrownBy(()-> transferService.createTransfer(createTransferRequest))
+                .isInstanceOf(CustomerNotFoundException.class);
+
+        verify(accountClient).getBalance(payerId);
+        verify(customerClient).existsById(payerId);
+        verify(transferRepository, times(1)).save(any());
+    }
+
+    @Test
+    void validateCustomerExists_whenCustomerServiceDown_throwsException() {
+        Long payerId = 1L;
+        Long payeeId = 2L;
+
+        CreateTransferRequest createTransferRequest = new CreateTransferRequest();
+        createTransferRequest.setPayerId(payerId);
+        createTransferRequest.setAmount(BigDecimal.valueOf(50.00));
+        createTransferRequest.setPayeeId(payeeId);
+        createTransferRequest.setType(TransferType.ACCOUNT_TO_CARD);
+
+        AccountBalanceResponse balanceResponse = new AccountBalanceResponse();
+        balanceResponse.setBalance(BigDecimal.valueOf(1000));
+
+        when(accountClient.getBalance(payerId)).thenReturn(balanceResponse);
+        when(customerClient.existsById(payerId)).thenThrow(feign.FeignException.InternalServerError.class);
+
+        assertThatThrownBy(()-> transferService.createTransfer(createTransferRequest))
+        .isInstanceOf(InvalidTransferException.class)
+                .hasMessage("Customer service unavailable");
+
+        verify(accountClient).getBalance(payerId);
+        verify(customerClient).existsById(payerId);
+        verify(transferRepository, times(1)).save(any());
     }
 }
